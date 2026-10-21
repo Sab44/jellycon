@@ -130,54 +130,8 @@ class CacheArtwork(threading.Thread):
         delete_canceled = False
         # now do work - delete unused
         if question_delete_unused:
-            delete_pdialog = xbmcgui.DialogProgress()
-            delete_pdialog.create(translate_string(30298), "")
-            index = 0
-
-            params = {"properties": ["url"]}
-            json_result = JsonRpc('Textures.GetTextures').execute(params)
-            textures = json_result.get("result", {}).get("textures", [])
-
-            jellyfin_texture_urls = self.get_jellyfin_artwork(delete_pdialog)
-
-            log.debug("kodi textures: {0}".format(textures))
-            log.debug("jellyfin texture urls: {0}".format(jellyfin_texture_urls))
-
-            if jellyfin_texture_urls is not None:
-
-                unused_texture_ids = set()
-                for texture in textures:
-                    url = texture.get("url")
-                    url = unquote(url)
-                    url = url.replace("image://", "")
-                    url = url[0:-1]
-                    if url.find("/") > -1 and url not in jellyfin_texture_urls or url.find("localhost:24276") > -1:
-                        unused_texture_ids.add(texture["textureid"])
-
-                total = len(unused_texture_ids)
-                log.debug("unused texture ids: {0}".format(unused_texture_ids))
-
-                for texture_id in unused_texture_ids:
-                    params = {"textureid": int(texture_id)}
-                    JsonRpc('Textures.RemoveTexture').execute(params)
-                    percentage = int((float(index) / float(total)) * 100)
-                    message = "%s of %s" % (index, total)
-                    delete_pdialog.update(percentage, message)
-
-                    index += 1
-                    if delete_pdialog.iscanceled():
-                        delete_canceled = True
-                        break
-
-                result_report.append(translate_string(30385) + str(len(textures)))
-                result_report.append(translate_string(30386) + str(len(unused_texture_ids)))
-                result_report.append(translate_string(30387) + str(index))
-
-            del textures
-            del jellyfin_texture_urls
-            del unused_texture_ids
-            delete_pdialog.close()
-            del delete_pdialog
+            delete_report, delete_canceled = self.delete_unused_artwork()
+            result_report.extend(delete_report)
 
         if delete_canceled:
             xbmc.sleep(2000)
@@ -196,6 +150,68 @@ class CacheArtwork(threading.Thread):
             msg = "\r\n".join(result_report)
             xbmcgui.Dialog().textviewer(translate_string(30125), msg, usemono=True)
 
+    def delete_unused_artwork(self):
+        '''
+        Remove every cached texture that is not current Jellyfin artwork,
+        including textures cached for other add-ons.
+        Returns (report lines, canceled).
+        '''
+        result_report = []
+        delete_canceled = False
+
+        delete_pdialog = xbmcgui.DialogProgress()
+        delete_pdialog.create(translate_string(30298), "")
+        index = 0
+
+        params = {"properties": ["url"]}
+        json_result = JsonRpc('Textures.GetTextures').execute(params)
+        textures = json_result.get("result", {}).get("textures", [])
+
+        jellyfin_texture_urls = self.get_jellyfin_artwork(delete_pdialog)
+
+        log.debug("kodi textures: {0}".format(textures))
+        log.debug("jellyfin texture urls: {0}".format(jellyfin_texture_urls))
+
+        if jellyfin_texture_urls is not None:
+
+            unused_texture_ids = set()
+            for texture in textures:
+                url = texture.get("url")
+                url = unquote(url)
+                url = url.replace("image://", "")
+                url = url[0:-1]
+                if url.find("/") > -1 and url not in jellyfin_texture_urls or url.find("localhost:24276") > -1:
+                    unused_texture_ids.add(texture["textureid"])
+
+            total = len(unused_texture_ids)
+            log.debug("unused texture ids: {0}".format(unused_texture_ids))
+
+            for texture_id in unused_texture_ids:
+                params = {"textureid": int(texture_id)}
+                JsonRpc('Textures.RemoveTexture').execute(params)
+                percentage = int((float(index) / float(total)) * 100)
+                message = "%s of %s" % (index, total)
+                delete_pdialog.update(percentage, message)
+
+                index += 1
+                if delete_pdialog.iscanceled():
+                    delete_canceled = True
+                    break
+
+            result_report.append(translate_string(30385) + str(len(textures)))
+            result_report.append(translate_string(30386) + str(len(unused_texture_ids)))
+            result_report.append(translate_string(30387) + str(index))
+
+        delete_pdialog.close()
+        return result_report, delete_canceled
+
+    def delete_unused_artwork_interactive(self):
+        log.debug("delete_unused_artwork_interactive")
+        result_report, _ = self.delete_unused_artwork()
+        if result_report:
+            msg = "\r\n".join(result_report)
+            xbmcgui.Dialog().textviewer(translate_string(30125), msg, usemono=True)
+
     def cache_artwork_background(self):
         log.debug("cache_artwork_background")
         dp = xbmcgui.DialogProgressBG()
@@ -209,6 +225,19 @@ class CacheArtwork(threading.Thread):
         del dp
         if result_text is not None:
             log.debug("Cache Images result : {0}".format(" - ".join(result_text)))
+        return result_text
+
+    def cache_artwork_now(self):
+        '''
+        Same as the screensaver triggered caching, started by the user
+        (e.g. from a skin shortcut), with a notification when done.
+        '''
+        log.debug("cache_artwork_now")
+        result_text = self.cache_artwork_background()
+        if result_text:
+            # Only the last line (images cached) fits into a notification
+            xbmcgui.Dialog().notification(
+                translate_string(30301), result_text[-1], time=8000)
 
     def get_jellyfin_artwork(self, progress):
         log.debug("get_jellyfin_artwork")
