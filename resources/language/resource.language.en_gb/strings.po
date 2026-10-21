@@ -1244,3 +1244,7 @@ msgstr "Quick Connect timed out. Please try again."
 msgctxt "#30683"
 msgid "Request smaller artwork from the server (faster on low power devices)"
 msgstr "Request smaller artwork from the server (faster on low power devices)"
+
+msgctxt "#30684"
+msgid "Load widgets one at a time (faster on low power devices)"
+msgstr "Load widgets one at a time (faster on low power devices)"

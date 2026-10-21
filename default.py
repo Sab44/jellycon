@@ -1,18 +1,24 @@
 # Gnu General Public License - see LICENSE.TXT
 
-import xbmcaddon
+import sys
 
-from resources.lib.lazylogger import LazyLogger
-from resources.lib.functions import main_entry_point
-from resources.lib.tracking import set_timing_enabled
+from resources.lib.listing_lock import listing_lock
 
-log = LazyLogger('default')
+# Take the listing lock before the heavy imports, they are most of the work
+with listing_lock(sys.argv[2] if len(sys.argv) > 2 else ''):
+    import xbmcaddon
 
-settings = xbmcaddon.Addon()
-log_timing_data = settings.getSetting('log_timing') == "true"
-if log_timing_data:
-    set_timing_enabled(True)
+    from resources.lib.lazylogger import LazyLogger
+    from resources.lib.functions import main_entry_point
+    from resources.lib.tracking import set_timing_enabled
 
-log.debug("About to enter mainEntryPoint()")
+    log = LazyLogger('default')
 
-main_entry_point()
+    settings = xbmcaddon.Addon()
+    log_timing_data = settings.getSetting('log_timing') == "true"
+    if log_timing_data:
+        set_timing_enabled(True)
+
+    log.debug("About to enter mainEntryPoint()")
+
+    main_entry_point()
