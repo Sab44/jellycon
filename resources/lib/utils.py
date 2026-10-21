@@ -297,6 +297,29 @@ def get_current_user_id():
     return user_id
 
 
+# Largest artwork requested from the server per art type when
+# reduce_artwork_size is enabled, None is the default for other art types
+ART_MAX_SIZE = {
+    'Backdrop': (1920, 1080),
+    None: (1280, 720),
+}
+ART_QUALITY = 90
+
+art_size_enabled = None
+
+
+def reduce_artwork_size():
+    '''
+    Read once per interpreter, get_art_url() runs for every art type of
+    every list item
+    '''
+    global art_size_enabled
+    if art_size_enabled is None:
+        addon_settings = xbmcaddon.Addon()
+        art_size_enabled = addon_settings.getSetting('reduce_artwork_size') == 'true'
+    return art_size_enabled
+
+
 def get_art_url(data, art_type, parent=False, index=0, server=None):
 
     item_id = data["Id"]
@@ -351,6 +374,14 @@ def get_art_url(data, art_type, parent=False, index=0, server=None):
 
     artwork = "{}/Items/{}/Images/{}/{}?Format=original&Tag={}".format(
         server, item_id, art_type, index, image_tag)
+
+    # Kodi scales cached artwork down to 720p (1080p for fanart) anyway.
+    # Letting the server resize avoids downloading and decoding images of
+    # up to 4K on the client, which is slow on low power devices.
+    if reduce_artwork_size():
+        max_width, max_height = ART_MAX_SIZE.get(art_type, ART_MAX_SIZE[None])
+        artwork += "&MaxWidth={}&MaxHeight={}&Quality={}".format(
+            max_width, max_height, ART_QUALITY)
     return artwork
 
 

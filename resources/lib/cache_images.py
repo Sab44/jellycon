@@ -334,7 +334,8 @@ class CacheArtwork(threading.Thread):
         missing_texture_urls = set()
 
         for image_url in jellyfin_texture_urls:
-            if image_url not in texture_urls and not image_url.endswith("&Tag=") and len(image_url) > 0:
+            # Skip artwork without an image tag ("&Tag=" last or followed by size parameters)
+            if image_url not in texture_urls and "&Tag=&" not in image_url + "&" and len(image_url) > 0:
                 missing_texture_urls.add(image_url)
 
             if self.stop_all_activity:
