@@ -92,6 +92,10 @@ def main_entry_point():
         check_server(change_user=True, notify=False)
     elif mode == "CACHE_ARTWORK":
         CacheArtwork().cache_artwork_interactive()
+    elif mode == "CACHE_ARTWORK_NOW":
+        CacheArtwork().cache_artwork_now()
+    elif mode == "DELETE_UNUSED_ARTWORK":
+        CacheArtwork().delete_unused_artwork_interactive()
     elif mode == "DETECT_SERVER":
         check_server(force=True, notify=True)
     elif mode == "DETECT_SERVER_USER":
